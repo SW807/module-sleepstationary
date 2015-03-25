@@ -5,7 +5,7 @@ android {
     buildToolsVersion "21.1.2"
 
     defaultConfig {
-        applicationId "dk.aau.cs.psylog.analysis.module_sleepstationary"
+        applicationId "dk.aau.cs.psylog.analysis.sleepstationary"
         minSdkVersion 18
         targetSdkVersion 21
         versionCode 1

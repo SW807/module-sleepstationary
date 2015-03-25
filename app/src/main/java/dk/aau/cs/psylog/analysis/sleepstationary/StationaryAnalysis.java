@@ -1,4 +1,11 @@
-package dk.aau.cs.psylog.analysis.module_sleepstationary;
+package dk.aau.cs.psylog.analysis.sleepstationary;
+
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.net.Uri;
+import android.util.Log;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -8,24 +15,40 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
+import dk.aau.cs.psylog.module_lib.DBAccessContract;
+
 /**
  * Created by Praetorian on 24-03-2015.
  */
 public class StationaryAnalysis {
 
     Queue<AccelerationData> previousDataQueue= new LinkedList<>();
+    ContentResolver contentResolver;
 
-    List<AccelerationData> data;
-    public StationaryAnalysis(List<AccelerationData> data)
+    public StationaryAnalysis(Context context)
     {
-        if(data.size() > 5)
-        {
-            for(int i = 0; i < 5; i++)
-                previousDataQueue.add(data.get(i));
-        }
-        this.data = makeMovingAverage(data.subList(5, data.size()-1));
+        contentResolver = context.getContentResolver();
+
     }
 
+    private List<AccelerationData> loadData()
+    {
+        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "accelerometer_accelerations");
+        Cursor cursor = contentResolver.query(uri, new String[]{"accX", "accY", "accZ", "time"},null,null,null);
+        List<AccelerationData> returnList= new ArrayList<>();
+        if(cursor.moveToFirst())
+        {
+            do{
+                float accX = cursor.getFloat(cursor.getColumnIndex("accX"));
+                float accY = cursor.getFloat(cursor.getColumnIndex("accY"));
+                float accZ = cursor.getFloat(cursor.getColumnIndex("accZ"));
+                String time = cursor.getString(cursor.getColumnIndex("time"));
+                returnList.add(new AccelerationData(accX, accY, accZ, time));
+            }while(cursor.moveToNext());
+        }
+        return returnList;
+
+    }
     private float probabilityFunc(float t)
     {
         float b = (float)(14400/Math.log(2));
@@ -34,8 +57,19 @@ public class StationaryAnalysis {
     }
     public void Analyse()
     {
-        if(previousDataQueue.isEmpty())
+        Log.e("LARSALS", "analyse kaldt");
+        List<AccelerationData> data = loadData();
+
+        if(data.size() > 5)
+        {
+            data = makeMovingAverage(data.subList(5, data.size()-1));
+            for(int i = 0; i < 5; i++)
+                previousDataQueue.add(data.get(i));
+        }
+        else
+        {
             return;
+        }
 
         float timeElapsed = 0.0f;
         float probabilitySleeping = 0.0f;
@@ -57,6 +91,7 @@ public class StationaryAnalysis {
             reportState(probabilitySleeping, acc.time);
             oldTime = newTime;
         }
+        Log.e("LARSALS", "analyseslut");
     }
     private Date convertTimeString(String s){
         SimpleDateFormat dateFormat = new SimpleDateFormat("YYYY-MM-DD hh:mm:ss");
@@ -108,6 +143,12 @@ public class StationaryAnalysis {
 
     private void reportState(float probability, String time)
     {
-
+        Log.e("LARSALS", "reportState");
+        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "STEPSTATIONARY_stepcalc");
+        ContentValues values = new ContentValues();
+        values.put("prob", probability);
+        values.put("time", time);
+        contentResolver.insert(uri, values);
+        Log.e("LARSALS", "reportStateEnd");
     }
 }

@@ -1,4 +1,4 @@
-package dk.aau.cs.psylog.analysis.module_sleepstationary;
+package dk.aau.cs.psylog.analysis.sleepstationary;
 
 /**
  * Created by Praetorian on 24-03-2015.

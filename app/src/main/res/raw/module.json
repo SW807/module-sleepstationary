@@ -1,0 +1,20 @@
+{
+  "name": "stepstationary",
+  "_version": 1.0,
+  "tables": [
+    {
+      "name": "stepcalc",
+      "columns": [
+        { "name": "prob", "dataType": "REAL"}
+      ]
+    }
+  ],
+  "dependencies": [
+          [
+              {
+                  "name": "accelerometer",
+                  "version": 1.0
+              }
+          ]
+      ]
+}
