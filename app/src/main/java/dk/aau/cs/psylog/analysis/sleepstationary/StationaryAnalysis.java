@@ -51,8 +51,7 @@ public class StationaryAnalysis {
     }
     private float probabilityFunc(float t)
     {
-        float b = (float)(14400/Math.log(2));
-
+        float b = (float)(4/Math.log10(2));
         return (-1.0f / ((float)Math.exp(t/b))) + 1.0f;
     }
     public void Analyse()
@@ -70,8 +69,6 @@ public class StationaryAnalysis {
         {
             return;
         }
-
-        float timeElapsed = 0.0f;
         float probabilitySleeping = 0.0f;
         Date oldTime = convertTimeString(data.get(0).time);
         for(AccelerationData acc : data)
@@ -79,22 +76,21 @@ public class StationaryAnalysis {
             Date newTime = convertTimeString(acc.time);
             if(isStationary(acc))
             {
-                float deltaTime= (newTime.getTime() - oldTime.getTime())/1000.0f;
-                timeElapsed += deltaTime;
+                float timeElapsed= (newTime.getTime() - oldTime.getTime())/(60.0f*60.0f*1000.0f);
+
                 probabilitySleeping = probabilityFunc(timeElapsed);
             }
             else
             {
-                timeElapsed = 0.0f;
                 probabilitySleeping = 0.0f;
+                oldTime = newTime;
             }
             reportState(probabilitySleeping, acc.time);
-            oldTime = newTime;
         }
         Log.e("LARSALS", "analyseslut");
     }
     private Date convertTimeString(String s){
-        SimpleDateFormat dateFormat = new SimpleDateFormat("YYYY-MM-DD hh:mm:ss");
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
         Date convertedTime = new Date();
         try {
             convertedTime = dateFormat.parse(s);
@@ -143,12 +139,10 @@ public class StationaryAnalysis {
 
     private void reportState(float probability, String time)
     {
-        Log.e("LARSALS", "reportState");
-        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "STEPSTATIONARY_stepcalc");
+        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_sleepcalc");
         ContentValues values = new ContentValues();
         values.put("prob", probability);
         values.put("time", time);
         contentResolver.insert(uri, values);
-        Log.e("LARSALS", "reportStateEnd");
     }
 }

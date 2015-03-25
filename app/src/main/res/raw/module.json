@@ -1,9 +1,9 @@
 {
-  "name": "stepstationary",
+  "name": "sleepstationary",
   "_version": 1.0,
   "tables": [
     {
-      "name": "stepcalc",
+      "name": "sleepcalc",
       "columns": [
         { "name": "prob", "dataType": "REAL"}
       ]

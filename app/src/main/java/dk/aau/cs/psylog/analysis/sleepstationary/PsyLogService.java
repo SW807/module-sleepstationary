@@ -25,7 +25,7 @@ public class PsyLogService extends Service{
     @Override
     public int onStartCommand(Intent intent, int flag, int startid)
     {
-        super.onStartCommand(intent, flag, startid);
+        //super.onStartCommand(intent, flag, startid);
         analysis.Analyse();
         return Service.START_STICKY;
     }
