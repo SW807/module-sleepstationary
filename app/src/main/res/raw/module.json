@@ -7,6 +7,12 @@
       "columns": [
         { "name": "prob", "dataType": "REAL"}
       ]
+    },
+    {
+      "name": "state",
+      "columns": [
+       { "name": "position", "dataType": "INTEGER"}
+      ]
     }
   ],
   "dependencies": [

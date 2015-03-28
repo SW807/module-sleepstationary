@@ -1,8 +1,10 @@
 package dk.aau.cs.psylog.analysis.sleepstationary;
 
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.util.Log;
@@ -16,11 +18,12 @@ import java.util.List;
 import java.util.Queue;
 
 import dk.aau.cs.psylog.module_lib.DBAccessContract;
+import dk.aau.cs.psylog.module_lib.IScheduledTask;
 
 /**
  * Created by Praetorian on 24-03-2015.
  */
-public class StationaryAnalysis {
+public class StationaryAnalysis implements IScheduledTask{
 
     Queue<AccelerationData> previousDataQueue= new LinkedList<>();
     ContentResolver contentResolver;
@@ -36,7 +39,7 @@ public class StationaryAnalysis {
         Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "accelerometer_accelerations");
         Cursor cursor = contentResolver.query(uri, new String[]{"accX", "accY", "accZ", "time"},null,null,null);
         List<AccelerationData> returnList= new ArrayList<>();
-        if(cursor.moveToFirst())
+        if((getLastPosition() > 5 && cursor.moveToPosition(getLastPosition()- 5)) || cursor.moveToFirst())
         {
             do{
                 float accX = cursor.getFloat(cursor.getColumnIndex("accX"));
@@ -61,9 +64,9 @@ public class StationaryAnalysis {
 
         if(data.size() > 5)
         {
-            data = makeMovingAverage(data.subList(5, data.size()-1));
             for(int i = 0; i < 5; i++)
                 previousDataQueue.add(data.get(i));
+            data = makeMovingAverage(data.subList(5, data.size()-1));
         }
         else
         {
@@ -76,16 +79,20 @@ public class StationaryAnalysis {
             Date newTime = convertTimeString(acc.time);
             if(isStationary(acc))
             {
-                float timeElapsed= (newTime.getTime() - oldTime.getTime())/(60.0f*60.0f*1000.0f);
-
+                float timeElapsed= (float)((newTime.getTime() - oldTime.getTime())/(60.0*60.0*1000.0));
+                if(timeElapsed != 0)
+                    Log.e("LALALAALAMARGIT",newTime.toString() + "  -   " + oldTime.toString() + "     :     "  + (newTime.getTime()-oldTime.getTime()));
                 probabilitySleeping = probabilityFunc(timeElapsed);
             }
             else
             {
                 probabilitySleeping = 0.0f;
                 oldTime = newTime;
+                Log.e("RESET", "RESET");
             }
             reportState(probabilitySleeping, acc.time);
+            previousDataQueue.remove();
+            previousDataQueue.add(acc);
         }
         Log.e("LARSALS", "analyseslut");
     }
@@ -98,6 +105,24 @@ public class StationaryAnalysis {
             e.printStackTrace();
         }
         return convertedTime;
+    }
+
+    private int lastPos = -1;
+    private int getLastPosition()
+    {
+        if(lastPos != -1)
+            return lastPos;
+        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
+        Cursor cursor = contentResolver.query(uri, new String[]{"position"}, null, null, null);
+        if(cursor.moveToFirst())
+        {
+            lastPos =  cursor.getInt(cursor.getColumnIndex("position"));
+            return lastPos;
+        }
+        else
+        {
+            return 0;
+        }
     }
 
     private boolean isStationary(AccelerationData accelerationData)
@@ -143,6 +168,33 @@ public class StationaryAnalysis {
         ContentValues values = new ContentValues();
         values.put("prob", probability);
         values.put("time", time);
-        contentResolver.insert(uri, values);
+        updatePosition(ContentUris.parseId(contentResolver.insert(uri, values)));
+    }
+
+    private void updatePosition(long id)
+    {
+        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
+        ContentValues values = new ContentValues();
+        values.put("position", id - 1);
+        lastPos = (int)id;
+        if(getLastPosition() > 0)
+        {
+            contentResolver.update(uri, values, "1=1", null);
+        }
+        else
+        {
+            contentResolver.insert(uri, values);
+        }
+    }
+
+    @Override
+    public void doTask() {
+        Analyse();
+    }
+
+    @Override
+    public void setParameters(Intent i) {
+
     }
 }
+
