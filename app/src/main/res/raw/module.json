@@ -1,6 +1,6 @@
 {
   "name": "sleepstationary",
-  "_version": 1.0,
+  "_version": 1.1,
   "tables": [
     {
       "name": "sleepcalc",
@@ -11,7 +11,8 @@
     {
       "name": "state",
       "columns": [
-       { "name": "position", "dataType": "INTEGER"}
+       { "name": "positionAcc", "dataType": "INTEGER"},
+        { "name": "positionAmpl", "dataType": "INTEGER"}
       ]
     }
   ],
@@ -19,6 +20,10 @@
           [
               {
                   "name": "accelerometer",
+                  "version": 1.0
+              },
+              {
+                  "name": "sound",
                   "version": 1.0
               }
           ]

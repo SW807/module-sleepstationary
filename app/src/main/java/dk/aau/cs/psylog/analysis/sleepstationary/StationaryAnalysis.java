@@ -13,8 +13,11 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 
 import dk.aau.cs.psylog.module_lib.DBAccessContract;
@@ -25,7 +28,6 @@ import dk.aau.cs.psylog.module_lib.IScheduledTask;
  */
 public class StationaryAnalysis implements IScheduledTask{
 
-    Queue<AccelerationData> previousDataQueue= new LinkedList<>();
     ContentResolver contentResolver;
 
     public StationaryAnalysis(Context context)
@@ -33,133 +35,90 @@ public class StationaryAnalysis implements IScheduledTask{
         contentResolver = context.getContentResolver();
 
     }
-
-    private List<AccelerationData> loadData()
-    {
-        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "accelerometer_accelerations");
-        Cursor cursor = contentResolver.query(uri, new String[]{"accX", "accY", "accZ", "time"},null,null,null);
-        List<AccelerationData> returnList= new ArrayList<>();
-        if((getLastPosition() > 5 && cursor.moveToPosition(getLastPosition()- 5)) || cursor.moveToFirst())
-        {
-            do{
-                float accX = cursor.getFloat(cursor.getColumnIndex("accX"));
-                float accY = cursor.getFloat(cursor.getColumnIndex("accY"));
-                float accZ = cursor.getFloat(cursor.getColumnIndex("accZ"));
-                String time = cursor.getString(cursor.getColumnIndex("time"));
-                returnList.add(new AccelerationData(accX, accY, accZ, time));
-            }while(cursor.moveToNext());
-        }
-        return returnList;
-
-    }
-    private float probabilityFunc(float t)
-    {
-        float b = (float)(4/Math.log10(2));
-        return (-1.0f / ((float)Math.exp(t/b))) + 1.0f;
-    }
     public void Analyse()
     {
-        Log.e("LARSALS", "analyse kaldt");
-        List<AccelerationData> data = loadData();
-
-        if(data.size() > 5)
+        Log.i("Analyse soevn", "analysen startet");
+        AccelerationSleepAnalysis accelerationSleepAnalysis = new AccelerationSleepAnalysis(contentResolver);
+        AmplitudeSleepAnalysis amplitudeSleepAnalysis = new AmplitudeSleepAnalysis(contentResolver);
+        Map<String, Float> resAcc = accelerationSleepAnalysis.Analyse();
+        Map<String, Float> resAmpl = amplitudeSleepAnalysis.Analyse();
+        if(resAcc ==  null && resAmpl == null)
+            return;
+        else if(resAcc == null)
         {
-            for(int i = 0; i < 5; i++)
-                previousDataQueue.add(data.get(i));
-            data = makeMovingAverage(data.subList(5, data.size()-1));
-        }
-        else
-        {
+            for(Map.Entry<String, Float> entry : resAmpl.entrySet())
+            {
+                reportState(entry.getValue(), entry.getKey());
+            }
             return;
         }
-        float probabilitySleeping = 0.0f;
-        Date oldTime = convertTimeString(data.get(0).time);
-        for(AccelerationData acc : data)
+        else if(resAmpl == null)
         {
-            Date newTime = convertTimeString(acc.time);
-            if(isStationary(acc))
+            for(Map.Entry<String, Float> entry : resAcc.entrySet())
             {
-                float timeElapsed= (float)((newTime.getTime() - oldTime.getTime())/(60.0*60.0*1000.0));
-                if(timeElapsed != 0)
-                    Log.e("LALALAALAMARGIT",newTime.toString() + "  -   " + oldTime.toString() + "     :     "  + (newTime.getTime()-oldTime.getTime()));
-                probabilitySleeping = probabilityFunc(timeElapsed);
+                reportState(entry.getValue(), entry.getKey());
+            }
+            return;
+        }
+
+        try {
+            //kombinering
+            Map<String, Float> result = weightedAverage(resAcc, resAmpl);
+            for(Map.Entry<String, Float> entry : result.entrySet())
+            {
+                reportState(entry.getValue(), entry.getKey());
+            }
+            Log.i("Analyse soevn", "analysen færdig");
+        }
+        catch (ParseException e){Log.e("ERROR", e.getMessage());}
+
+    }
+
+    private Map<String, Float> weightedAverage(Map<String, Float> map1, Map<String,Float> map2) throws ParseException
+    {
+
+        LinkedHashMap<String, Float> resultMap = new LinkedHashMap<String, Float>();
+        Iterator<Map.Entry<String, Float>> it1 = map1.entrySet().iterator();
+        Iterator<Map.Entry<String, Float>> it2 = map2.entrySet().iterator();
+        Map.Entry<String, Float> ele1 = it1.next();
+        Map.Entry<String, Float> ele2 = it2.next();
+        SimpleDateFormat sdf  = new SimpleDateFormat("yyyy-MM-dd kk:mm:ss.SSS");
+        while(it1.hasNext() && it2.hasNext())
+        {
+            float combination = 0.3f*ele1.getValue() + 0.7f*ele2.getValue();
+            Date d1 = sdf.parse(ele1.getKey());
+            Date d2 = sdf.parse(ele2.getKey());
+            if(d1.getTime() < d2.getTime())
+            {
+                resultMap.put(ele1.getKey(), combination);
+                ele1 = it1.next();
+            }
+            else if(d2.getTime() < d1.getTime())
+            {
+                resultMap.put(ele2.getKey(), combination);
+                ele2 = it2.next();
             }
             else
             {
-                probabilitySleeping = 0.0f;
-                oldTime = newTime;
-                Log.e("RESET", "RESET");
+                resultMap.put(ele1.getKey(), combination);
+                ele1 = it1.next();
+                ele2 = it2.next();
             }
-            reportState(probabilitySleeping, acc.time);
-            previousDataQueue.remove();
-            previousDataQueue.add(acc);
         }
-        Log.e("LARSALS", "analyseslut");
-    }
-    private Date convertTimeString(String s){
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
-        Date convertedTime = new Date();
-        try {
-            convertedTime = dateFormat.parse(s);
-        }catch (ParseException e){
-            e.printStackTrace();
-        }
-        return convertedTime;
-    }
 
-    private int lastPos = -1;
-    private int getLastPosition()
-    {
-        if(lastPos != -1)
-            return lastPos;
-        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
-        Cursor cursor = contentResolver.query(uri, new String[]{"position"}, null, null, null);
-        if(cursor.moveToFirst())
+        while(it1.hasNext())
         {
-            lastPos =  cursor.getInt(cursor.getColumnIndex("position"));
-            return lastPos;
+            float combination = 0.3f*ele1.getValue() + 0.7f*ele2.getValue();
+            resultMap.put(ele1.getKey(), combination);
+            ele1 = it1.next();
         }
-        else
+        while(it2.hasNext())
         {
-            return 0;
+            float combination = 0.3f*ele1.getValue() + 0.7f*ele2.getValue();
+            resultMap.put(ele2.getKey(), combination);
+            ele2 = it2.next();
         }
-    }
-
-    private boolean isStationary(AccelerationData accelerationData)
-    {
-        boolean b = true;
-        for(AccelerationData toConsider : previousDataQueue)
-        {
-            if(outOfThreshHold(accelerationData, toConsider))
-                b = false;
-        }
-        return b;
-    }
-
-    private boolean outOfThreshHold(AccelerationData acc1, AccelerationData acc2)
-    {
-        return Math.abs(acc1.accX - acc2.accX) > 0.5f ||
-               Math.abs(acc1.accY - acc2.accY) > 0.5f ||
-               Math.abs(acc1.accZ - acc2.accZ) > 0.5f;
-    }
-
-    private List<AccelerationData> makeMovingAverage(List<AccelerationData> data)
-    {
-        if(data.size() == 0)
-            return null;
-        List<AccelerationData> returnList = new ArrayList<>();
-        AccelerationData MAOld = data.get(0);
-        float alpha = 0.1f;
-        for(AccelerationData element : data)
-        {
-            AccelerationData MAnew = element;
-            MAnew.accX = alpha* MAnew.accX + (1-alpha)*MAOld.accX;
-            MAnew.accY = alpha* MAnew.accY + (1-alpha)*MAOld.accY;
-            MAnew.accZ = alpha* MAnew.accZ + (1-alpha)*MAOld.accZ;
-            returnList.add(MAnew);
-            MAOld = MAnew;
-        }
-        return returnList;
+        return resultMap;
     }
 
     private void reportState(float probability, String time)
@@ -168,24 +127,10 @@ public class StationaryAnalysis implements IScheduledTask{
         ContentValues values = new ContentValues();
         values.put("prob", probability);
         values.put("time", time);
-        updatePosition(ContentUris.parseId(contentResolver.insert(uri, values)));
+        contentResolver.insert(uri,values);
     }
 
-    private void updatePosition(long id)
-    {
-        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
-        ContentValues values = new ContentValues();
-        values.put("position", id - 1);
-        lastPos = (int)id;
-        if(getLastPosition() > 0)
-        {
-            contentResolver.update(uri, values, "1=1", null);
-        }
-        else
-        {
-            contentResolver.insert(uri, values);
-        }
-    }
+
 
     @Override
     public void doTask() {
