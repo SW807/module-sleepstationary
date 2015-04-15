@@ -27,5 +27,9 @@
                   "version": 1.0
               }
           ]
-      ]
+      ],
+        "task": {
+          "type": "interval",
+          "value": "60"
+        }
 }
