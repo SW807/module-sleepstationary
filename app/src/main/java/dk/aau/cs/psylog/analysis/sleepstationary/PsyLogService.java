@@ -16,7 +16,6 @@ public class PsyLogService extends ScheduledService {
         super("StationarySleep");
     }
 
-
     @Override
     public void setScheduledTask() {
         this.scheduledTask = new StationaryAnalysis(this);
