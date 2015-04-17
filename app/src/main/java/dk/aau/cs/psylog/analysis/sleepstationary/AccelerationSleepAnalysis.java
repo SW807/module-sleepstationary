@@ -5,6 +5,8 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.net.Uri;
 
+import java.sql.Time;
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -31,8 +33,24 @@ public class AccelerationSleepAnalysis {
     {
         this.contentResolver = contentResolver;
     }
-
-
+    private String loadTimeString() throws Exception {
+        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
+        Cursor cursor = contentResolver.query(uri, new String[]{"timeAcc"}, null, null, null);
+        if(cursor.moveToFirst())
+        {
+            String res = cursor.getString(cursor.getColumnIndex("timeAcc"));
+            if(res == null || res == "")
+            {
+                throw new Exception("No Time located");
+            }
+            cursor.close();
+            return  res;
+        }
+        else
+        {
+            throw new Exception("No Time located");
+        }
+    }
     private List<AccelerationData> loadData()
     {
         Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "accelerometer_accelerations");
@@ -61,6 +79,7 @@ public class AccelerationSleepAnalysis {
     		return 1.0f;
     	return res;
     }
+    Date oldTime;
     public LinkedHashMap<String, Float> Analyse()
     {
         List<AccelerationData> data = loadData();
@@ -76,7 +95,17 @@ public class AccelerationSleepAnalysis {
             return null;
         }
         float probabilitySleeping = 0.0f;
-        Date oldTime = convertTimeString(data.get(0).time);
+        try {
+            oldTime = convertTimeString(loadTimeString());
+        }
+        catch (Exception e){
+            try {
+                oldTime = convertTimeString(data.get(0).time);
+            }
+            catch (NullPointerException ne) {
+                return null;
+            }
+        }
         for(AccelerationData acc : data)
         {
             Date newTime = convertTimeString(acc.time);
@@ -149,7 +178,6 @@ public class AccelerationSleepAnalysis {
     private int lastPos = -1;
     private int getLastPosition()
     {
-
         Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
         Cursor cursor = contentResolver.query(uri, new String[]{"positionAcc"}, null, null, null);
         if(cursor.moveToFirst())
@@ -167,7 +195,10 @@ public class AccelerationSleepAnalysis {
         Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
         ContentValues values = new ContentValues();
         values.put("positionAcc", lastPos);
-        Cursor cursor = contentResolver.query(uri, new String[]{"_id", "positionAcc", "positionAmpl"}, null, null, null);
+
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+        values.put("timeAcc", df.format(oldTime));
+        Cursor cursor = contentResolver.query(uri, new String[]{"_id", "positionAcc", "positionAmpl", "timeAcc" , "timeAmpl"}, null, null, null);
         if(cursor.getCount() > 0)
         {
             contentResolver.update(uri, values, "1=1", null);

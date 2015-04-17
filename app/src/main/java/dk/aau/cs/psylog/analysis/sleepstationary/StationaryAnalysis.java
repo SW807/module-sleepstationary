@@ -68,7 +68,7 @@ public class StationaryAnalysis implements IScheduledTask{
             {
                 reportState(entry.getValue(), entry.getKey());
             }
-            Log.i("Analyse soevn", "analysen færdig");
+
         }
         catch (ParseException e){Log.e("ERROR", e.getMessage());}
 
@@ -76,7 +76,6 @@ public class StationaryAnalysis implements IScheduledTask{
 
     private Map<String, Float> weightedAverage(Map<String, Float> map1, Map<String,Float> map2) throws ParseException
     {
-
         LinkedHashMap<String, Float> resultMap = new LinkedHashMap<String, Float>();
         Iterator<Map.Entry<String, Float>> it1 = map1.entrySet().iterator();
         Iterator<Map.Entry<String, Float>> it2 = map2.entrySet().iterator();
@@ -135,6 +134,7 @@ public class StationaryAnalysis implements IScheduledTask{
     @Override
     public void doTask() {
         Analyse();
+        Log.i("Analyse soevn", "analysen færdig");
     }
 
     @Override

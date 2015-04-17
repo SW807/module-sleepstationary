@@ -12,7 +12,9 @@
       "name": "state",
       "columns": [
        { "name": "positionAcc", "dataType": "INTEGER"},
-        { "name": "positionAmpl", "dataType": "INTEGER"}
+       { "name": "positionAmpl", "dataType": "INTEGER"},
+       { "name": "timeAcc", "dataType": "TEXT"},
+       { "name": "timeAmpl", "dataType": "TEXT"}
       ]
     }
   ],
@@ -28,8 +30,8 @@
               }
           ]
       ],
-        "task": {
-          "type": "interval",
-          "value": "60"
-        }
+      "task" : {
+        "type" : "interval",
+        "value": "60"
+      }
 }
