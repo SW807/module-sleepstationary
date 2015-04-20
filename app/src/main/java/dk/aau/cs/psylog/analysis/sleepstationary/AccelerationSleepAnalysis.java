@@ -25,16 +25,15 @@ import dk.aau.cs.psylog.module_lib.DBAccessContract;
  * Created by Praetorian on 24-03-2015.
  */
 public class AccelerationSleepAnalysis {
-
-    Queue<AccelerationData> previousDataQueue= new LinkedList<>();
     ContentResolver contentResolver;
+    Uri SleepStationaryUri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
 
     public AccelerationSleepAnalysis(ContentResolver contentResolver)
     {
         this.contentResolver = contentResolver;
     }
-    private String loadTimeString() throws Exception {
-        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
+    private Date loadTimeString() throws Exception {
+        Uri uri = SleepStationaryUri;
         Cursor cursor = contentResolver.query(uri, new String[]{"timeAcc"}, null, null, null);
         if(cursor.moveToFirst())
         {
@@ -44,7 +43,7 @@ public class AccelerationSleepAnalysis {
                 throw new Exception("No Time located");
             }
             cursor.close();
-            return  res;
+            return convertTimeString(res);
         }
         else
         {
@@ -56,7 +55,8 @@ public class AccelerationSleepAnalysis {
         Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "accelerometer_accelerations");
         Cursor cursor = contentResolver.query(uri, new String[]{"_id","accX", "accY", "accZ", "time"},null,null,null);
         List<AccelerationData> returnList= new ArrayList<>();
-        if((getLastPosition() > 5 && cursor.moveToPosition(getLastPosition()- 5)) || cursor.moveToFirst())
+        int lastPosition = getLastPosition();
+        if((lastPosition > 5 && cursor.moveToPosition(lastPosition- 5)) || cursor.moveToFirst())
         {
             do{
                 float accX = cursor.getFloat(cursor.getColumnIndex("accX"));
@@ -73,17 +73,19 @@ public class AccelerationSleepAnalysis {
     }
     private float probabilityFunc(float t)
     {
-    	float k = 1.0f;
+        float k = 1.0f;
     	float res = (float)(1.0/(1.0+ Math.exp(-k*(t - 4.0))));
     	if(res > 1.0f)
     		return 1.0f;
     	return res;
     }
-    Date oldTime;
+
     public LinkedHashMap<String, Float> Analyse()
     {
+
+        Queue<AccelerationData> previousDataQueue= new LinkedList<>();
         List<AccelerationData> data = loadData();
-    	LinkedHashMap<String,Float> returnMap = new LinkedHashMap<String,Float>();
+    	LinkedHashMap<String,Float> returnMap = new LinkedHashMap<>();
         if(data.size() > 5)
         {
             for(int i = 0; i < 5; i++)
@@ -94,9 +96,10 @@ public class AccelerationSleepAnalysis {
         {
             return null;
         }
-        float probabilitySleeping = 0.0f;
+
+        Date oldTime;
         try {
-            oldTime = convertTimeString(loadTimeString());
+            oldTime = loadTimeString();
         }
         catch (Exception e){
             try {
@@ -106,10 +109,12 @@ public class AccelerationSleepAnalysis {
                 return null;
             }
         }
+
+        float probabilitySleeping = 0.0f;
         for(AccelerationData acc : data)
         {
             Date newTime = convertTimeString(acc.time);
-            if(isStationary(acc))
+            if(isStationary(acc,previousDataQueue))
             {
                 float timeElapsed= (float)((newTime.getTime() - oldTime.getTime())/(60.0*60.0*1000.0));
                 probabilitySleeping = probabilityFunc(timeElapsed);
@@ -120,15 +125,14 @@ public class AccelerationSleepAnalysis {
                 oldTime = newTime;
             }
             returnMap.put(acc.time, probabilitySleeping);
-            lastProb = probabilitySleeping;
-            //reportState(probabilitySleeping, acc.time);
+
             previousDataQueue.remove();
             previousDataQueue.add(acc);
         }
-        updatePosition();
+        updatePosition(oldTime, probabilitySleeping);
         return returnMap;
     }
-    float lastProb;
+
     private Date convertTimeString(String s){
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
         Date convertedTime = new Date();
@@ -140,7 +144,7 @@ public class AccelerationSleepAnalysis {
         return convertedTime;
     }
 
-    private boolean isStationary(AccelerationData accelerationData)
+    private boolean isStationary(AccelerationData accelerationData, Queue<AccelerationData> previousDataQueue)
     {
         boolean b = true;
         for(AccelerationData toConsider : previousDataQueue)
@@ -162,25 +166,22 @@ public class AccelerationSleepAnalysis {
     {
         if(data.size() == 0)
             return null;
-        List<AccelerationData> returnList = new ArrayList<>();
         AccelerationData MAOld = data.get(0);
         float alpha = 0.1f;
-        for(AccelerationData element : data)
+        for(AccelerationData MAnew : data)
         {
-            AccelerationData MAnew = element;
             MAnew.accX = alpha* MAnew.accX + (1-alpha)*MAOld.accX;
             MAnew.accY = alpha* MAnew.accY + (1-alpha)*MAOld.accY;
             MAnew.accZ = alpha* MAnew.accZ + (1-alpha)*MAOld.accZ;
-            returnList.add(MAnew);
             MAOld = MAnew;
         }
-        return returnList;
+        return data;
     }
 
     private int lastPos = -1;
     private int getLastPosition()
     {
-        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
+        Uri uri = SleepStationaryUri;
         Cursor cursor = contentResolver.query(uri, new String[]{"positionAcc"}, null, null, null);
         if(cursor.moveToFirst())
         {
@@ -192,9 +193,9 @@ public class AccelerationSleepAnalysis {
         }
     }
 
-    private void updatePosition()
+    private void updatePosition(Date oldTime ,float lastProb)
     {
-        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
+        Uri uri = SleepStationaryUri;
         ContentValues values = new ContentValues();
         values.put("positionAcc", lastPos);
 
