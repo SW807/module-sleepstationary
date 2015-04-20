@@ -120,6 +120,7 @@ public class AccelerationSleepAnalysis {
                 oldTime = newTime;
             }
             returnMap.put(acc.time, probabilitySleeping);
+            lastProb = probabilitySleeping;
             //reportState(probabilitySleeping, acc.time);
             previousDataQueue.remove();
             previousDataQueue.add(acc);
@@ -127,6 +128,7 @@ public class AccelerationSleepAnalysis {
         updatePosition();
         return returnMap;
     }
+    float lastProb;
     private Date convertTimeString(String s){
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
         Date convertedTime = new Date();
@@ -198,6 +200,7 @@ public class AccelerationSleepAnalysis {
 
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
         values.put("timeAcc", df.format(oldTime));
+        values.put("probAcc", lastProb);
         Cursor cursor = contentResolver.query(uri, new String[]{"_id", "positionAcc", "positionAmpl", "timeAcc" , "timeAmpl"}, null, null, null);
         if(cursor.getCount() > 0)
         {

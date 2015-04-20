@@ -1,6 +1,6 @@
 {
   "name": "sleepstationary",
-  "_version": 1.1,
+  "_version": 3.1,
   "tables": [
     {
       "name": "sleepcalc",
@@ -14,7 +14,9 @@
        { "name": "positionAcc", "dataType": "INTEGER"},
        { "name": "positionAmpl", "dataType": "INTEGER"},
        { "name": "timeAcc", "dataType": "TEXT"},
-       { "name": "timeAmpl", "dataType": "TEXT"}
+       { "name": "timeAmpl", "dataType": "TEXT"},
+       { "name": "probAcc", "dataType": "REAL"},
+       { "name": "probAmpl", "dataType": "REAL"}
       ]
     }
   ],
@@ -29,9 +31,5 @@
                   "version": 1.0
               }
           ]
-      ],
-      "task" : {
-        "type" : "interval",
-        "value": "60"
-      }
+      ]
 }

@@ -62,7 +62,7 @@ public class AmplitudeSleepAnalysis {
     public LinkedHashMap<String, Float> Analyse()
     {
         List<AmplitudeData> data = loadData();
-    	LinkedHashMap<String,Float> returnMap = new LinkedHashMap<String,Float>();
+    	LinkedHashMap<String,Float> returnMap = new LinkedHashMap<>();
         if(data.size() > 5)
         {
             for(int i = 0; i < 5; i++)
@@ -99,12 +99,15 @@ public class AmplitudeSleepAnalysis {
                 oldTime = newTime;
             }
             returnMap.put(amplitudeData.time, probabilitySleeping);
+            lastProb = probabilitySleeping;
             previousDataQueue.remove();
             previousDataQueue.add(amplitudeData);
         }
         updatePosition();
         return returnMap;
     }
+
+    float lastProb;
     private Date convertTimeString(String s){
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
         Date convertedTime = new Date();
@@ -164,6 +167,7 @@ public class AmplitudeSleepAnalysis {
         }
         else
         {
+            cursor.close();
             throw new Exception("No Time located");
         }
     }
@@ -175,10 +179,13 @@ public class AmplitudeSleepAnalysis {
         Cursor cursor = contentResolver.query(uri, new String[]{"positionAmpl"}, null, null, null);
         if(cursor.moveToFirst())
         {
-            return cursor.getInt(cursor.getColumnIndex("positionAmpl"));
+            int res = cursor.getInt(cursor.getColumnIndex("positionAmpl"));
+            cursor.close();
+            return res;
         }
         else
         {
+            cursor.close();
             return 0;
         }
     }
@@ -190,6 +197,7 @@ public class AmplitudeSleepAnalysis {
         values.put("positionAmpl", lastPos);
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
         values.put("timeAmpl", df.format(oldTime));
+        values.put("probAmpl", lastProb);
         Cursor cursor = contentResolver.query(uri, new String[]{"_id", "positionAcc", "positionAmpl", "timeAcc" , "timeAmpl"}, null, null, null);
         if(cursor.getCount() > 0)
         {
@@ -200,6 +208,7 @@ public class AmplitudeSleepAnalysis {
             values.put("positionAcc", 1);
             contentResolver.insert(uri, values);
         }
+        cursor.close();
     }
 }
 

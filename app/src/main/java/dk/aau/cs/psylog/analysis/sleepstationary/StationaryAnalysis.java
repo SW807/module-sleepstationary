@@ -41,22 +41,26 @@ public class StationaryAnalysis implements IScheduledTask{
         AccelerationSleepAnalysis accelerationSleepAnalysis = new AccelerationSleepAnalysis(contentResolver);
         AmplitudeSleepAnalysis amplitudeSleepAnalysis = new AmplitudeSleepAnalysis(contentResolver);
         Map<String, Float> resAcc = accelerationSleepAnalysis.Analyse();
+        Log.i("Analyse soevn", "acc analyse færdig");
         Map<String, Float> resAmpl = amplitudeSleepAnalysis.Analyse();
+        Log.i("Analyse soevn", "ampl analyse færdig");
         if(resAcc ==  null && resAmpl == null)
             return;
         else if(resAcc == null)
         {
+            float accProb = readProb("probAcc");
             for(Map.Entry<String, Float> entry : resAmpl.entrySet())
             {
-                reportState(entry.getValue(), entry.getKey());
+                reportState(entry.getValue()*0.7f + 0.3f*accProb, entry.getKey());
             }
             return;
         }
         else if(resAmpl == null)
         {
+            float amplProb = readProb("probAmpl");
             for(Map.Entry<String, Float> entry : resAcc.entrySet())
             {
-                reportState(entry.getValue(), entry.getKey());
+                reportState(entry.getValue()*0.3f + amplProb*0.7f, entry.getKey());
             }
             return;
         }
@@ -72,8 +76,22 @@ public class StationaryAnalysis implements IScheduledTask{
         }
         catch (ParseException e){Log.e("ERROR", e.getMessage());}
 
+
     }
 
+    private float readProb(String column)
+    {
+        Uri uri = Uri.parse(DBAccessContract.DBACCESS_CONTENTPROVIDER + "SLEEPSTATIONARY_state");
+        Cursor cursor = contentResolver.query(uri, new String[]{column}, null, null, null);
+        if(cursor.moveToFirst())
+        {
+            return cursor.getFloat(cursor.getColumnIndex(column));
+        }
+        else
+        {
+            return 0.0f;
+        }
+    }
     private Map<String, Float> weightedAverage(Map<String, Float> map1, Map<String,Float> map2) throws ParseException
     {
         LinkedHashMap<String, Float> resultMap = new LinkedHashMap<String, Float>();
