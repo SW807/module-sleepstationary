@@ -11,25 +11,27 @@
     {
       "name": "state",
       "columns": [
-       { "name": "positionAcc", "dataType": "INTEGER"},
-       { "name": "positionAmpl", "dataType": "INTEGER"},
-       { "name": "timeAcc", "dataType": "TEXT"},
-       { "name": "timeAmpl", "dataType": "TEXT"},
-       { "name": "probAcc", "dataType": "REAL"},
-       { "name": "probAmpl", "dataType": "REAL"}
+        {"name": "accPos", "dataType": "REAL"},
+        {"name": "amplPos", "dataType": "REAL"}
       ]
     }
   ],
   "dependencies": [
           [
               {
-                  "name": "accelerometer",
-                  "version": 1.0
-              },
-              {
-                  "name": "sound",
+                  "name": "soundsleepanalysis",
                   "version": 1.0
               }
+          ],
+          [
+              {
+                 "name": "accelerationsleepanalysis",
+                 "version": 1.0
+              }
           ]
-      ]
+      ],
+       "task" : {
+         "type" : "interval",
+         "value": "10"
+   }
 }
